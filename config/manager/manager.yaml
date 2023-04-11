@@ -71,6 +71,7 @@ spec:
         args:
         - --leader-elect
         image: junya0530/resource-replicator:v1.0.0
+        imagePullPolicy: Always
         name: manager
         securityContext:
           allowPrivilegeEscalation: false

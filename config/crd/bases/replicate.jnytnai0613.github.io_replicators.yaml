@@ -15,7 +15,7 @@ spec:
     shortNames:
     - rep
     singular: replicator
-  scope: Namespaced
+  scope: Cluster
   versions:
   - additionalPrinterColumns:
     - jsonPath: .status.synced
@@ -4205,6 +4205,8 @@ spec:
                       type: object
                     type: array
                 type: object
+              replicationNamespace:
+                type: string
               serviceName:
                 type: string
               serviceSpec:
@@ -4318,6 +4320,7 @@ spec:
             required:
             - deploymentName
             - deploymentSpec
+            - replicationNamespace
             type: object
           status:
             description: ReplicatorStatus defines the observed state of Replicator
