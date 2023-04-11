@@ -70,8 +70,9 @@ func (c *IngressSpecApplyConfiguration) DeepCopy() *IngressSpecApplyConfiguratio
 
 // ReplicatorSpec defines the desired state of Replicator
 type ReplicatorSpec struct {
-	DeploymentName string                            `json:"deploymentName"`
-	DeploymentSpec *DeploymentSpecApplyConfiguration `json:"deploymentSpec"`
+	ReplicationNamespace string                            `json:"replicationNamespace"`
+	DeploymentName       string                            `json:"deploymentName"`
+	DeploymentSpec       *DeploymentSpecApplyConfiguration `json:"deploymentSpec"`
 
 	//+optional
 	ConfigMapName string `json:"configMapName"`
@@ -117,7 +118,7 @@ type PerResourceApplyStatus struct {
 }
 
 //+kubebuilder:object:root=true
-//+kubebuilder:resource:shortName=rep
+//+kubebuilder:resource:scope=Cluster,shortName=rep
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.synced"
 //+kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"

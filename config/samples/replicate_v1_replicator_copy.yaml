@@ -7,12 +7,12 @@ metadata:
     app.kubernetes.io/part-of: resource-replicator
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: resource-replicator
-  name: replicator-sample
+  name: replicator-sample-copy
 spec:
   targetCluster:
     - cluster-v1252.kubernetes-admin2
     - cluster-v1262.kubernetes-admin3
-  replicationNamespace: "test-ns"
+  replicationNamespace: "test-ns-copy"
   deploymentName: nginx
   deploymentSpec:
     replicas: 3

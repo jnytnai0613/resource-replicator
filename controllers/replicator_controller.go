@@ -100,11 +100,13 @@ func (r *ReplicatorReconciler) applyConfigMap(
 	fieldMgr string,
 ) error {
 	var (
-		configMapClient = applyRuntime.ClientSet.CoreV1().ConfigMaps(constants.Namespace)
+		configMapClient = applyRuntime.ClientSet.CoreV1().ConfigMaps(applyRuntime.Replicator.Spec.ReplicationNamespace)
 		log             = applyRuntime.Log
 	)
 
-	nextConfigMapApplyConfig := corev1apply.ConfigMap(applyRuntime.Replicator.Spec.ConfigMapName, constants.Namespace).
+	nextConfigMapApplyConfig := corev1apply.ConfigMap(
+		applyRuntime.Replicator.Spec.ConfigMapName,
+		applyRuntime.Replicator.Spec.ReplicationNamespace).
 		WithData(applyRuntime.Replicator.Spec.ConfigMapData)
 
 	if applyRuntime.IsPrimary {
@@ -176,12 +178,14 @@ func (r *ReplicatorReconciler) applyDeployment(
 	fieldMgr string,
 ) error {
 	var (
-		deploymentClient = applyRuntime.ClientSet.AppsV1().Deployments(constants.Namespace)
+		deploymentClient = applyRuntime.ClientSet.AppsV1().Deployments(applyRuntime.Replicator.Spec.ReplicationNamespace)
 		labels           = map[string]string{"apps": "nginx"}
 		log              = applyRuntime.Log
 	)
 
-	nextDeploymentApplyConfig := appsv1apply.Deployment(applyRuntime.Replicator.Spec.DeploymentName, constants.Namespace).
+	nextDeploymentApplyConfig := appsv1apply.Deployment(
+		applyRuntime.Replicator.Spec.DeploymentName,
+		applyRuntime.Replicator.Spec.ReplicationNamespace).
 		WithSpec(appsv1apply.DeploymentSpec().
 			WithSelector(metav1apply.LabelSelector().
 				WithMatchLabels(labels)))
@@ -289,12 +293,14 @@ func (r *ReplicatorReconciler) applyService(
 	fieldMgr string,
 ) error {
 	var (
-		serviceClient = applyRuntime.ClientSet.CoreV1().Services(constants.Namespace)
+		serviceClient = applyRuntime.ClientSet.CoreV1().Services(applyRuntime.Replicator.Spec.ReplicationNamespace)
 		labels        = map[string]string{"apps": "nginx"}
 		log           = applyRuntime.Log
 	)
 
-	nextServiceApplyConfig := corev1apply.Service(applyRuntime.Replicator.Spec.ServiceName, constants.Namespace).
+	nextServiceApplyConfig := corev1apply.Service(
+		applyRuntime.Replicator.Spec.ServiceName,
+		applyRuntime.Replicator.Spec.ReplicationNamespace).
 		WithSpec((*corev1apply.ServiceSpecApplyConfiguration)(applyRuntime.Replicator.Spec.ServiceSpec).
 			WithSelector(labels))
 
@@ -369,13 +375,15 @@ func (r *ReplicatorReconciler) applyIngress(
 	var (
 		annotateRewriteTarget = map[string]string{"nginx.ingress.kubernetes.io/rewrite-target": "/"}
 		annotateVerifyClient  = map[string]string{"nginx.ingress.kubernetes.io/auth-tls-verify-client": "on"}
-		annotateTlsSecret     = map[string]string{"nginx.ingress.kubernetes.io/auth-tls-secret": fmt.Sprintf("%s/%s", constants.Namespace, constants.IngressSecretName)}
-		ingressClient         = applyRuntime.ClientSet.NetworkingV1().Ingresses(constants.Namespace)
+		annotateTlsSecret     = map[string]string{"nginx.ingress.kubernetes.io/auth-tls-secret": fmt.Sprintf("%s/%s", applyRuntime.Replicator.Spec.ReplicationNamespace, constants.IngressSecretName)}
+		ingressClient         = applyRuntime.ClientSet.NetworkingV1().Ingresses(applyRuntime.Replicator.Spec.ReplicationNamespace)
 		log                   = applyRuntime.Log
-		secretClient          = applyRuntime.ClientSet.CoreV1().Secrets(constants.Namespace)
+		secretClient          = applyRuntime.ClientSet.CoreV1().Secrets(applyRuntime.Replicator.Spec.ReplicationNamespace)
 	)
 
-	nextIngressApplyConfig := networkv1apply.Ingress(applyRuntime.Replicator.Spec.IngressName, constants.Namespace).
+	nextIngressApplyConfig := networkv1apply.Ingress(
+		applyRuntime.Replicator.Spec.IngressName,
+		applyRuntime.Replicator.Spec.ReplicationNamespace).
 		WithAnnotations(annotateRewriteTarget).
 		WithSpec((*networkv1apply.IngressSpecApplyConfiguration)(applyRuntime.Replicator.Spec.IngressSpec).
 			WithIngressClassName(constants.IngressClassName))
@@ -512,7 +520,7 @@ func (r *ReplicatorReconciler) applyIngressSecret(
 ) error {
 	var (
 		log          = applyRuntime.Log
-		secretClient = applyRuntime.ClientSet.CoreV1().Secrets(constants.Namespace)
+		secretClient = applyRuntime.ClientSet.CoreV1().Secrets(applyRuntime.Replicator.Spec.ReplicationNamespace)
 	)
 
 	secret, err := secretClient.Get(
@@ -550,7 +558,9 @@ func (r *ReplicatorReconciler) applyIngressSecret(
 		"ca.crt":  caCrt,
 	}
 
-	nextIngressSecretApplyConfig := corev1apply.Secret(constants.IngressSecretName, constants.Namespace).
+	nextIngressSecretApplyConfig := corev1apply.Secret(
+		constants.IngressSecretName,
+		applyRuntime.Replicator.Spec.ReplicationNamespace).
 		WithData(secData)
 
 	if applyRuntime.IsPrimary {
@@ -602,7 +612,7 @@ func (r *ReplicatorReconciler) applyClientSecret(
 ) error {
 	var (
 		log          = applyRuntime.Log
-		secretClient = applyRuntime.ClientSet.CoreV1().Secrets(constants.Namespace)
+		secretClient = applyRuntime.ClientSet.CoreV1().Secrets(applyRuntime.Replicator.Spec.ReplicationNamespace)
 	)
 
 	secret, err := secretClient.Get(
@@ -633,7 +643,9 @@ func (r *ReplicatorReconciler) applyClientSecret(
 		"client.key": cliKey,
 	}
 
-	nextClientSecretApplyConfig := corev1apply.Secret(constants.ClientSecretName, constants.Namespace).
+	nextClientSecretApplyConfig := corev1apply.Secret(
+		constants.ClientSecretName,
+		applyRuntime.Replicator.Spec.ReplicationNamespace).
 		WithData(secData)
 
 	if applyRuntime.IsPrimary {
@@ -715,7 +727,8 @@ func (r *ReplicatorReconciler) Replicate(
 	ctx context.Context,
 	log logr.Logger,
 	req ctrl.Request,
-	targetClientSets map[string]*kubernetes.Clientset,
+	primaryCluster map[string]*kubernetes.Clientset,
+	secondaryClientSets map[string]*kubernetes.Clientset,
 ) error {
 	var (
 		applyFailed      bool
@@ -727,45 +740,31 @@ func (r *ReplicatorReconciler) Replicate(
 		return err
 	}
 
-	// Deploy resources to the local cluster first.
-	// If even one error occurs during the deployment of the target resource,
-	// the process ends there.
-stopLoop:
-	for _, clusterDetector := range clusterDetectors.Items {
-		if clusterDetector.GetLabels()["app.kubernetes.io/role"] != "primary" {
-			continue
+	for primaryClusterName, clientSet := range primaryCluster {
+		replicateRuntime = ReplicateRuntime{
+			ClientSet:  clientSet,
+			IsPrimary:  true,
+			Context:    ctx,
+			Log:        log,
+			Cluster:    primaryClusterName,
+			Replicator: replicator,
+			Request:    req,
 		}
-		primaryCluster := clusterDetector.GetName()
-		for key, clientSet := range r.ClientSets {
-			if key != primaryCluster {
-				continue
-			}
-			replicateRuntime = ReplicateRuntime{
-				ClientSet:  clientSet,
-				IsPrimary:  true,
-				Context:    ctx,
-				Log:        log,
-				Cluster:    primaryCluster,
-				Replicator: replicator,
-				Request:    req,
-			}
-			if err := r.applyResources(replicateRuntime); err != nil {
-				log.Error(err, fmt.Sprintf("Could not apply to Primary Cluster %s", primaryCluster))
-				return err
-			}
-			break stopLoop
+		if err := r.applyResources(replicateRuntime); err != nil {
+			log.Error(err, fmt.Sprintf("Could not apply to Primary Cluster %s", primaryClusterName))
+			return err
 		}
 	}
 
 	// After successful resource deployment to the local cluster,
 	// replicate the resources to the remote cluster.
-	for cluster, clientSet := range targetClientSets {
+	for secondaryClusterName, clientSet := range secondaryClientSets {
 		replicateRuntime.ClientSet = clientSet
 		replicateRuntime.IsPrimary = false
-		replicateRuntime.Cluster = cluster
+		replicateRuntime.Cluster = secondaryClusterName
 		if err = r.applyResources(replicateRuntime); err != nil {
 			applyFailed = true
-			log.Error(err, fmt.Sprintf("Could not replicate to Secondary Cluster %s", cluster))
+			log.Error(err, fmt.Sprintf("Could not replicate to Secondary Cluster %s", secondaryClusterName))
 		}
 	}
 	// If one of the clusters fails to replicate, it is considered a synchronization failure.
@@ -777,18 +776,77 @@ stopLoop:
 	return nil
 }
 
-func deleteTargetClusterResources(
+func (r *ReplicatorReconciler) createNamespace(
+	ctx context.Context,
+	log logr.Logger,
+	replicator replicatev1.Replicator,
+	secondaryClientSets map[string]*kubernetes.Clientset,
+) error {
+	for cluster, clientSet := range secondaryClientSets {
+		var namespaceClient = clientSet.CoreV1().Namespaces()
+
+		ns := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: replicator.Spec.ReplicationNamespace,
+			},
+		}
+
+		if _, err := namespaceClient.Get(
+			ctx,
+			replicator.Spec.ReplicationNamespace,
+			metav1.GetOptions{},
+		); err != nil {
+			// If the resource does not exist, create it.
+			// Therefore, Not Found errors are ignored.
+			if !errors.IsNotFound(err) {
+				return err
+			}
+
+			created, err := namespaceClient.Create(ctx, ns, metav1.CreateOptions{})
+			if err != nil {
+				log.Error(err, "unable create namespace")
+				return err
+			}
+
+			log.Info(fmt.Sprintf("Namespace creation: [cluster] %s, [resource] %s", cluster, created.GetName()))
+		}
+	}
+	return nil
+}
+
+func deletePrimaryNamespace(
+	ctx context.Context,
+	log logr.Logger,
+	primaryClientSet map[string]*kubernetes.Clientset,
+	primaryNamespaceName string,
+) error {
+	for _, clientSet := range primaryClientSet {
+		var namespaceClient = clientSet.CoreV1().Namespaces()
+		if err := namespaceClient.Delete(
+			ctx,
+			primaryNamespaceName,
+			metav1.DeleteOptions{},
+		); err != nil {
+			log.Error(err, "unable to delete primary namespace")
+		}
+	}
+
+	return nil
+}
+
+func deleteSecondaryClusterResources(
 	ctx context.Context,
 	replicator replicatev1.Replicator,
-	targetClientSets map[string]*kubernetes.Clientset,
+	secondaryClientSets map[string]*kubernetes.Clientset,
 ) error {
-	for _, clientSet := range targetClientSets {
+	for _, clientSet := range secondaryClientSets {
 		var (
-			configMapClient  = clientSet.CoreV1().ConfigMaps(constants.Namespace)
-			deploymentClient = clientSet.AppsV1().Deployments(constants.Namespace)
-			serviceClient    = clientSet.CoreV1().Services(constants.Namespace)
-			ingressClient    = clientSet.NetworkingV1().Ingresses(constants.Namespace)
-			secretClient     = clientSet.CoreV1().Secrets(constants.Namespace)
+			configMapClient  = clientSet.CoreV1().ConfigMaps(replicator.Spec.ReplicationNamespace)
+			deploymentClient = clientSet.AppsV1().Deployments(replicator.Spec.ReplicationNamespace)
+			serviceClient    = clientSet.CoreV1().Services(replicator.Spec.ReplicationNamespace)
+			ingressClient    = clientSet.NetworkingV1().Ingresses(replicator.Spec.ReplicationNamespace)
+			secretClient     = clientSet.CoreV1().Secrets(replicator.Spec.ReplicationNamespace)
+			namespaceClient  = clientSet.CoreV1().Namespaces()
 		)
 
 		if replicator.Spec.IngressSecureEnabled {
@@ -847,6 +905,14 @@ func deleteTargetClusterResources(
 				return err
 			}
 		}
+
+		if err := namespaceClient.Delete(
+			ctx,
+			replicator.Spec.ReplicationNamespace,
+			metav1.DeleteOptions{},
+		); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -855,44 +921,66 @@ func deleteTargetClusterResources(
 //+kubebuilder:rbac:groups=replicate.jnytnai0613.github.io,resources=replicators,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=replicate.jnytnai0613.github.io,resources=replicators/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=replicate.jnytnai0613.github.io,resources=replicators/finalizers,verbs=update
+//+kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=endpoints,verbs=get;list;watch
-//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.4/pkg/reconcile
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.6/pkg/reconcile
 func (r *ReplicatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var (
-		applyFailed      bool
-		logger           = log.FromContext(ctx)
-		targetClientSets = make(map[string]*kubernetes.Clientset)
+		applyFailed          bool
+		logger               = log.FromContext(ctx)
+		secondaryClientSets  = make(map[string]*kubernetes.Clientset)
+		clusterDetectors     replicatev1.ClusterDetectorList
+		primaryClientSet     = make(map[string]*kubernetes.Clientset)
+		primaryNamespaceName string
 	)
+	if err := r.Client.List(ctx, &clusterDetectors, client.InNamespace(constants.Namespace)); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	if err := r.Client.Get(ctx, req.NamespacedName, &replicator); err != nil {
 		logger.Error(err, "unable to fetch CR Replicator")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// Detect remote clusters.
-	// Remote clusters detected here are used for replication and Finalize.
+	// Generate ClientSet for primary cluster.
+	for _, clusterDetector := range clusterDetectors.Items {
+		if clusterDetector.GetLabels()["app.kubernetes.io/role"] != "primary" {
+			continue
+		}
+		primaryClusterName := clusterDetector.GetName()
+		for key, clientSet := range r.ClientSets {
+			if key != primaryClusterName {
+				continue
+			}
+			primaryClientSet[primaryClusterName] = clientSet
+		}
+	}
+
+	// Generate ClientSet for secondary cluster.
+	// ClientSet for secondary cluster are used for replication and Finalize.
 	for key, clientSet := range r.ClientSets {
 		for _, secondaryCluster := range replicator.Spec.TargetCluster {
 			if key != secondaryCluster {
 				continue
 			}
-			targetClientSets[secondaryCluster] = clientSet
+			secondaryClientSets[secondaryCluster] = clientSet
 			break
 		}
 	}
 
-	// Resources in remote clusters are considered external resources.
+	// Resources in secondary clusters are considered external resources.
 	// Therefore, they are deleted by finalizer.
 	finalizerName := "replicate.jnytnai0613.github.io/finalizer"
 	if !replicator.ObjectMeta.DeletionTimestamp.IsZero() {
+		primaryNamespaceName = replicator.Spec.ReplicationNamespace
 		if controllerutil.ContainsFinalizer(&replicator, finalizerName) {
-			if err := deleteTargetClusterResources(ctx, replicator, targetClientSets); err != nil {
+			if err := deleteSecondaryClusterResources(ctx, replicator, secondaryClientSets); err != nil {
 				return ctrl.Result{}, err
 			}
 
@@ -901,6 +989,19 @@ func (r *ReplicatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 				return ctrl.Result{}, err
 			}
 		}
+
+		// After controllerutil.RemoveFinalizer processing, the Replicator resource is deleted.
+		// Since the child resources are deleted by deleting the Replicator resource,
+		// namespace can also be deleted.
+		if err := deletePrimaryNamespace(
+			ctx,
+			logger,
+			primaryClientSet,
+			primaryNamespaceName,
+		); err != nil {
+			return ctrl.Result{}, err
+		}
+
 		return ctrl.Result{}, nil
 	}
 
@@ -911,10 +1012,20 @@ func (r *ReplicatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 	}
 
+	// Create a namespace for replication in the Primary Cluster.
+	if err := r.createNamespace(ctx, logger, replicator, primaryClientSet); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Create a namespace for replication in the Secondary Cluster.
+	if err := r.createNamespace(ctx, logger, replicator, secondaryClientSets); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Initialize syncStatus slice once to update the status of the replicator.
 	// If not initialized, the status held in the previous Reconcile is used.
 	syncStatus = nil
-	err := r.Replicate(ctx, logger, req, targetClientSets)
+	err := r.Replicate(ctx, logger, req, primaryClientSet, secondaryClientSets)
 
 	replicator.Status.Applied = syncStatus
 	for _, v := range replicator.Status.Applied {

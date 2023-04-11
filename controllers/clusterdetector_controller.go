@@ -169,7 +169,7 @@ func SetupClusterDetector(localClient client.Client, log logr.Logger) error {
 //+kubebuilder:rbac:groups=core,resources=endpoints,verbs=get
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get
 
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.4/pkg/reconcile
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.6/pkg/reconcile
 func (r *ClusterDetectorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
