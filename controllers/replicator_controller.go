@@ -734,7 +734,7 @@ func (r *ReplicatorReconciler) Replicate(
 	ctx context.Context,
 	log logr.Logger,
 	req ctrl.Request,
-	primaryCluster map[string]*kubernetes.Clientset,
+	primaryClientSet map[string]*kubernetes.Clientset,
 	secondaryClientSets map[string]*kubernetes.Clientset,
 ) error {
 	var (
@@ -747,7 +747,7 @@ func (r *ReplicatorReconciler) Replicate(
 		return err
 	}
 
-	for primaryClusterName, clientSet := range primaryCluster {
+	for primaryClusterName, clientSet := range primaryClientSet {
 		replicateRuntime = ReplicateRuntime{
 			ClientSet:  clientSet,
 			IsPrimary:  true,

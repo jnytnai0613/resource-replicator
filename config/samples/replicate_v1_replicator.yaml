@@ -10,8 +10,8 @@ metadata:
   name: replicator-sample
 spec:
   targetCluster:
-    - cluster-v1252.kubernetes-admin2
-    - cluster-v1262.kubernetes-admin3
+    - v1252-cluster.kubernetes-admin3
+    - v1262-cluster.kubernetes-admin2
   replicationNamespace: "test-ns"
   deploymentName: nginx
   deploymentSpec:
