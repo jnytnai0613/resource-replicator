@@ -741,11 +741,7 @@ func (r *ReplicatorReconciler) Replicate(
 		applyFailed      bool
 		err              error
 		replicateRuntime ReplicateRuntime
-		clusterDetectors replicatev1.ClusterDetectorList
 	)
-	if err := r.Client.List(ctx, &clusterDetectors, client.InNamespace(constants.Namespace)); err != nil {
-		return err
-	}
 
 	for primaryClusterName, clientSet := range primaryClientSet {
 		replicateRuntime = ReplicateRuntime{
@@ -766,9 +762,15 @@ func (r *ReplicatorReconciler) Replicate(
 	// After successful resource deployment to the local cluster,
 	// replicate the resources to the remote cluster.
 	for secondaryClusterName, clientSet := range secondaryClientSets {
-		replicateRuntime.ClientSet = clientSet
-		replicateRuntime.IsPrimary = false
-		replicateRuntime.Cluster = secondaryClusterName
+		replicateRuntime = ReplicateRuntime{
+			ClientSet:  clientSet,
+			IsPrimary:  false,
+			Context:    ctx,
+			Log:        log,
+			Cluster:    secondaryClusterName,
+			Replicator: replicator,
+			Request:    req,
+		}
 		if err = r.applyResources(replicateRuntime); err != nil {
 			applyFailed = true
 			log.Error(err, fmt.Sprintf("Could not replicate to Secondary Cluster %s", secondaryClusterName))
@@ -783,7 +785,7 @@ func (r *ReplicatorReconciler) Replicate(
 	return nil
 }
 
-func (r *ReplicatorReconciler) createNamespace(
+func createNamespace(
 	ctx context.Context,
 	log logr.Logger,
 	replicator replicatev1.Replicator,
@@ -811,7 +813,6 @@ func (r *ReplicatorReconciler) createNamespace(
 
 			created, err := namespaceClient.Create(ctx, ns, metav1.CreateOptions{})
 			if err != nil {
-				log.Error(err, "unable create namespace")
 				return err
 			}
 
@@ -846,7 +847,8 @@ func deleteSecondaryClusterResources(
 	replicator replicatev1.Replicator,
 	secondaryClientSets map[string]*kubernetes.Clientset,
 ) error {
-	for _, clientSet := range secondaryClientSets {
+	var deleteErr error
+	for cluster, clientSet := range secondaryClientSets {
 		var (
 			configMapClient  = clientSet.CoreV1().ConfigMaps(replicator.Spec.ReplicationNamespace)
 			deploymentClient = clientSet.AppsV1().Deployments(replicator.Spec.ReplicationNamespace)
@@ -862,7 +864,8 @@ func deleteSecondaryClusterResources(
 				constants.ClientSecretName,
 				metav1.DeleteOptions{},
 			); err != nil {
-				return err
+				log.Log.Error(err, fmt.Sprintf("Unable to delete client secret for secondary cluster %s.", cluster))
+				deleteErr = multierr.Append(deleteErr, err)
 			}
 
 			if err := secretClient.Delete(
@@ -870,7 +873,8 @@ func deleteSecondaryClusterResources(
 				constants.IngressSecretName,
 				metav1.DeleteOptions{},
 			); err != nil {
-				return err
+				log.Log.Error(err, fmt.Sprintf("Unable to delete server secret for secondary cluster %s.", cluster))
+				deleteErr = multierr.Append(deleteErr, err)
 			}
 		}
 
@@ -880,7 +884,8 @@ func deleteSecondaryClusterResources(
 				replicator.Spec.IngressName,
 				metav1.DeleteOptions{},
 			); err != nil {
-				return nil
+				log.Log.Error(err, fmt.Sprintf("Unable to delete ingress for secondary cluster %s.", cluster))
+				deleteErr = multierr.Append(deleteErr, err)
 			}
 		}
 
@@ -890,7 +895,8 @@ func deleteSecondaryClusterResources(
 				replicator.Spec.ServiceName,
 				metav1.DeleteOptions{},
 			); err != nil {
-				return err
+				log.Log.Error(err, fmt.Sprintf("Unable to delete service for secondary cluster %s.", cluster))
+				deleteErr = multierr.Append(deleteErr, err)
 			}
 		}
 
@@ -900,7 +906,8 @@ func deleteSecondaryClusterResources(
 			replicator.Spec.DeploymentName,
 			metav1.DeleteOptions{},
 		); err != nil {
-			return err
+			log.Log.Error(err, fmt.Sprintf("Unable to delete deployment for secondary cluster %s.", cluster))
+			deleteErr = multierr.Append(deleteErr, err)
 		}
 
 		if replicator.Spec.ConfigMapData != nil {
@@ -909,7 +916,8 @@ func deleteSecondaryClusterResources(
 				replicator.Spec.ConfigMapName,
 				metav1.DeleteOptions{},
 			); err != nil {
-				return err
+				log.Log.Error(err, fmt.Sprintf("Unable to delete configmap for secondary cluster %s.", cluster))
+				deleteErr = multierr.Append(deleteErr, err)
 			}
 		}
 
@@ -918,11 +926,12 @@ func deleteSecondaryClusterResources(
 			replicator.Spec.ReplicationNamespace,
 			metav1.DeleteOptions{},
 		); err != nil {
-			return err
+			log.Log.Error(err, fmt.Sprintf("Unable to delete namespace for secondary cluster %s.", cluster))
+			deleteErr = multierr.Append(deleteErr, err)
 		}
 	}
 
-	return nil
+	return deleteErr
 }
 
 //+kubebuilder:rbac:groups=replicate.jnytnai0613.github.io,resources=replicators,verbs=get;list;watch;create;update;patch;delete
@@ -939,7 +948,6 @@ func deleteSecondaryClusterResources(
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.6/pkg/reconcile
 func (r *ReplicatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var (
-		applyFailed          bool
 		logger               = log.FromContext(ctx)
 		secondaryClientSets  = make(map[string]*kubernetes.Clientset)
 		clusterDetectors     replicatev1.ClusterDetectorList
@@ -988,7 +996,7 @@ func (r *ReplicatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		primaryNamespaceName = replicator.Spec.ReplicationNamespace
 		if controllerutil.ContainsFinalizer(&replicator, finalizerName) {
 			if err := deleteSecondaryClusterResources(ctx, replicator, secondaryClientSets); err != nil {
-				return ctrl.Result{}, err
+				logger.Error(err, "Unable to delete secondary cluster resources")
 			}
 
 			controllerutil.RemoveFinalizer(&replicator, finalizerName)
@@ -1020,13 +1028,13 @@ func (r *ReplicatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// Create a namespace for replication in the Primary Cluster.
-	if err := r.createNamespace(ctx, logger, replicator, primaryClientSet); err != nil {
-		return ctrl.Result{}, err
+	if err := createNamespace(ctx, logger, replicator, primaryClientSet); err != nil {
+		logger.Error(err, "Unable to create namespace for primary cluster.")
 	}
 
 	// Create a namespace for replication in the Secondary Cluster.
-	if err := r.createNamespace(ctx, logger, replicator, secondaryClientSets); err != nil {
-		return ctrl.Result{}, err
+	if err := createNamespace(ctx, logger, replicator, secondaryClientSets); err != nil {
+		logger.Error(err, "Unable to create namespace for secondary cluster.")
 	}
 
 	// Initialize syncStatus slice once to update the status of the replicator.
@@ -1034,20 +1042,12 @@ func (r *ReplicatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	syncStatus = nil
 	err := r.Replicate(ctx, logger, req, primaryClientSet, secondaryClientSets)
 
-	replicator.Status.Applied = syncStatus
-	for _, v := range replicator.Status.Applied {
-		if v.ApplyStatus == "not applied" {
-			applyFailed = true
-			replicator.Status.Synced = "not synced"
-			if err := r.Status().Update(ctx, &replicator); err != nil {
-				return ctrl.Result{}, err
-			}
+	if err != nil {
+		replicator.Status.Applied = syncStatus
+		replicator.Status.Synced = "not synced"
+		if err := r.Status().Update(ctx, &replicator); err != nil {
+			return ctrl.Result{}, err
 		}
-	}
-
-	// Handle errors in the r.Replicate function after Status
-	// processing of the replicator resource.
-	if applyFailed {
 		return ctrl.Result{}, err
 	}
 

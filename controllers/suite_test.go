@@ -24,29 +24,42 @@ SOFTWARE.
 package controllers
 
 import (
+	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"k8s.io/client-go/kubernetes/scheme"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	replicatev1 "github.com/jnytnai0613/resource-replicator/api/v1"
 	//+kubebuilder:scaffold:imports
+
+	replicatev1 "github.com/jnytnai0613/resource-replicator/api/v1"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-var cfg *rest.Config
-var k8sClient client.Client
-var testEnv *envtest.Environment
+var (
+	cfg        *rest.Config
+	cfgs       []*rest.Config
+	ctx        = context.Background()
+	envs       []*envtest.Environment
+	kClient    client.Client
+	clientsets = make(map[string]*kubernetes.Clientset)
+	scheme     = runtime.NewScheme()
+)
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -57,31 +70,61 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
-	By("bootstrapping test environment")
-	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
-		ErrorIfCRDPathMissing: true,
+	numClusters := 2
+
+	err = clientgoscheme.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = replicatev1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+
+	// start the environments
+	for i := 0; i < numClusters; i++ {
+		env := &envtest.Environment{
+			CRDDirectoryPaths: []string{filepath.Join("..", "config", "crd", "bases")},
+			CRDInstallOptions: envtest.CRDInstallOptions{
+				Scheme: scheme,
+			},
+			ErrorIfCRDPathMissing: true,
+		}
+		envs = append(envs, env)
+
+		cfg, err = env.Start()
+		Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to start env %d", i))
+
+		cfgs = append(cfgs, cfg)
+
+		// Assuming cluster0 is the primary, generate clients.
+		if i == 0 {
+			kClient, err = client.New(cfg, client.Options{Scheme: scheme})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(kClient).NotTo(BeNil())
+		}
+
+		//+kubebuilder:scaffold:scheme
+
+		// Create clientset for the environment
+		kClientset, err := kubernetes.NewForConfig(cfg)
+		Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to create clientset for env %d", i))
+
+		clientsets[fmt.Sprintf("Cluster%d", i)] = kClientset
+
+		ns := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: replicationNamespace,
+			},
+		}
+
+		clientsets[fmt.Sprintf("cluster%d", i)] = kClientset
+		namespaceClient := clientsets[fmt.Sprintf("Cluster%d", i)].CoreV1().Namespaces()
+		_, err = namespaceClient.Create(ctx, ns, metav1.CreateOptions{})
+		Expect(err).ShouldNot(HaveOccurred())
 	}
-
-	var err error
-	// cfg is defined in this file globally.
-	cfg, err = testEnv.Start()
-	Expect(err).NotTo(HaveOccurred())
-	Expect(cfg).NotTo(BeNil())
-
-	err = replicatev1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	//+kubebuilder:scaffold:scheme
-
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
-
 })
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
-	err := testEnv.Stop()
-	Expect(err).NotTo(HaveOccurred())
+	for _, env := range envs {
+		err := env.Stop()
+		Expect(err).NotTo(HaveOccurred())
+	}
 })
