@@ -214,8 +214,7 @@ TLS settings are also automatically added to Ingress.
 Each annotation is explained below.
 https://github.com/kubernetes/ingress-nginx/blob/main/docs/user-guide/nginx-configuration/annotations.md#client-certificate-authentication
 ```json
-$ kubectl -n ssa-nginx-controller-system get ingr
-ess nginx -ojson | jq '.metadata.annotations'
+$ kubectl -n ssa-nginx-controller-system get ingress nginx -ojson | jq '.metadata.annotations'
 {
   "nginx.ingress.kubernetes.io/auth-tls-secret": "ssa-nginx-controller-system/ca-secret",
   "nginx.ingress.kubernetes.io/auth-tls-verify-client": "on",
