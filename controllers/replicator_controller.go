@@ -743,16 +743,17 @@ func (r *ReplicatorReconciler) Replicate(
 		replicateRuntime ReplicateRuntime
 	)
 
+	replicateRuntime = ReplicateRuntime{
+		Context:    ctx,
+		Log:        log,
+		Replicator: replicator,
+		Request:    req,
+	}
+
 	for primaryClusterName, clientSet := range primaryClientSet {
-		replicateRuntime = ReplicateRuntime{
-			ClientSet:  clientSet,
-			IsPrimary:  true,
-			Context:    ctx,
-			Log:        log,
-			Cluster:    primaryClusterName,
-			Replicator: replicator,
-			Request:    req,
-		}
+		replicateRuntime.ClientSet = clientSet
+		replicateRuntime.IsPrimary = true
+		replicateRuntime.Cluster = primaryClusterName
 		if err := r.applyResources(replicateRuntime); err != nil {
 			log.Error(err, fmt.Sprintf("Could not apply to Primary Cluster %s", primaryClusterName))
 			return err
@@ -762,15 +763,9 @@ func (r *ReplicatorReconciler) Replicate(
 	// After successful resource deployment to the local cluster,
 	// replicate the resources to the remote cluster.
 	for secondaryClusterName, clientSet := range secondaryClientSets {
-		replicateRuntime = ReplicateRuntime{
-			ClientSet:  clientSet,
-			IsPrimary:  false,
-			Context:    ctx,
-			Log:        log,
-			Cluster:    secondaryClusterName,
-			Replicator: replicator,
-			Request:    req,
-		}
+		replicateRuntime.ClientSet = clientSet
+		replicateRuntime.IsPrimary = false
+		replicateRuntime.Cluster = secondaryClusterName
 		if err = r.applyResources(replicateRuntime); err != nil {
 			applyFailed = true
 			log.Error(err, fmt.Sprintf("Could not replicate to Secondary Cluster %s", secondaryClusterName))
