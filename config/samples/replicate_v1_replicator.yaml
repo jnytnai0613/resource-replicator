@@ -113,7 +113,7 @@ spec:
       <p><em>Thank you for using nginx.</em></p>
       </body>
       </html>
-  #serviceName: nginx
+  serviceName: nginx
   ##############################################################################
   ## Selector is automatically assigned by the controller and is not required.
   ##############################################################################
