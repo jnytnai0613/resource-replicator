@@ -260,6 +260,15 @@ Since the -v option is given to curl, the CN specified in certificate.go can be 
 ## Getting Started
 You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
 **Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
+
+### Prerequisite
+- In this case, the cluster where Operator is deployed is considered Primary and the cluster where it is replicated is considered Secondary. Therefore, please prepare the Primary and Secondary clusters.
+- The software listed in the following URL must be installed in advance
+    - [NGINX ingress controller](https://kubernetes.github.io/ingress-nginx/deploy/)
+    - if not already installed
+        - make
+        - gcc
+
 ### Merge kubeconfig
 Merge the kubeconfig of the cluster where Operator will be deployed and the cluster to be replicated.
 The name of the merged file should be "config".
