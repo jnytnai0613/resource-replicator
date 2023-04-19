@@ -1,6 +1,7 @@
 # resource-replicator
 ## Description
 Replication of resources in the Primary Kubernetes cluster to the Secondary Kubernetes cluster.
+![test](https://github.com/jnytnai0613/resource-replicator/tree/Update-README/docs/demo.mp4)
 
 ## Automatic creation and replication of Kubernetes resources.
 Replication of the following resources is supported
