@@ -4,6 +4,13 @@ Replication of resources in the Primary Kubernetes cluster to the Secondary Kube
 
 https://user-images.githubusercontent.com/31709999/232977207-8eed6091-d0a9-40da-9931-c78975fb9ca1.mp4
 
+## Road Map
+This Operator may make destructive changes to the code in the future.
+- [ ] Read/delete context and add replication target resources via CLI.
+- [ ] Allow replication of resources other than those described in the next section, "Automatic Creation and Replication of Kubernetes Resources". In that case, users can add any resource with CLI.
+- [ ] Elevate it as an outplace-upgrades tool through constant replication.
+- [ ] Best Effort: Support distributed tracing with OpenTelemetry
+
 ## Automatic creation and replication of Kubernetes resources.
 Replication of the following resources is supported
 - Creation of the following kuberndtes resources
