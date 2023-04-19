@@ -161,6 +161,16 @@ spec:
 ## Description to each field of CR
 The CR yaml file is located in the config/samples directory.
 
+### .spec.targetCluster
+| Name            | Type     | Required      |
+| --------------- | -------- | ------------- |
+| targetCluster   | []string | false         |
+
+### .spec.replicationNamespace
+| Name                 | Type     | Required      |
+| -------------------- | -------- | ------------- |
+| replicationNamespace | string   | true          |
+
 ### .spec.deploymentSpec
 | Name       | Type               | Required      |
 | ---------- | ------------------ | ------------- |
@@ -183,7 +193,7 @@ https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#P
 ### .spec.serviceName
 | Name           | Type               | Required      |
 | -------------- | ------------------ | ------------- |
-| serviceName    | string             | true          |
+| serviceName    | string             | false         |
 
 ### .spec.serviceSpec
 The serviceSpec field is required. 
@@ -194,7 +204,7 @@ https://kubernetes.io/docs/reference/kubernetes-api/service-resources/service-v1
 ### .spec.ingressName
 | Name           | Type               | Required      |
 | -------------- | ------------------ | ------------- |
-| ingressName    | string             | true          |
+| ingressName    | string             | false         |
 
 ### .spec.ingressSpec
 The ingressSpec field is required.
@@ -306,11 +316,11 @@ kubectl apply -f config/samples/<yame file name>
 View resources in the Primary cluster (where Operator is deployed)
 For the namespace, please refer to CR's replicationNamespace.
 ```sh
-kubectl -n test-ns get all,configmap,secret,ingress
+kubectl -n <namespace name> get all,configmap,secret,ingress
 ```
 The resources of the cluster to be replicated can be checked with the following command.
 ```sh
-kubectl -n test-ns get all,configmap,secret,ingress --context <context name>
+kubectl -n <namespace name> get all,configmap,secret,ingress --context <context name>
 ```
 
 ### Tearing it down
