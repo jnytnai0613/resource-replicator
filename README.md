@@ -12,18 +12,36 @@ This Operator may make destructive changes to the code in the future.
 - [ ] Best Effort: Support distributed tracing with OpenTelemetry
 
 ## Automatic creation and replication of Kubernetes resources.
-Replication of the following resources is supported
-- Creation of the following kuberndtes resources
-   - ConfigMap
-   - Deployment
-   - Service
-   - Ingress
+1. Primary and Secondary Cluster Detection  
+   - A clusterdetector resource is automatically created by the Operator to perform cluster detection.
+2. Replication of the following resources is supported
+   - Creation of the following kuberndtes resources
+     - ConfigMap
+     - Deployment
+     - Service
+     - Ingress
 
-- The following resources are automatically created when SSL is enabled in Ingress.
-    - Secret1: Data contains CA certificate, server certificate and private key required for SSL termination of Ingress
-    - Secret2: Client certificate and private key required for access to Ingress in data
+   - The following resources are automatically created when SSL is enabled in Ingress.
+     - Secret1: Data contains CA certificate, server certificate and private key required for SSL termination of Ingress
+     - Secret2: Client certificate and private key required for access to Ingress in data
+
+## Primary and Secondary cluster detection
+When the Operator is deployed, the clusterdetector resource is automatically created as shown below.  
+Replication is performed using the clusterdetector resource.
+```
+kubectl -n resource-replicator-system get clusterdetectors.replicate.jnytnai0613.github.io -owide --show-labels
+NAME                              CONTEXT      CLUSTER         USER                CLUSTERSTATUS   REASON   AGE   LABELS
+v1252-cluster.kubernetes-admin3   secondary2   v1252-cluster   kubernetes-admin3   Running                  37h   app.kubernetes.io/role=secondary
+v1262-cluster.kubernetes-admin2   secondary1   v1262-cluster   kubernetes-admin2   Running                  37h   app.kubernetes.io/role=secondary
+v1270-cluster.kubernetes-admin1   primary      v1270-cluster   kubernetes-admin1   Running                  37h   app.kubernetes.io/role=primary
+```
 
 ## yaml example
+Replication can be performed by applying the following yaml file and creating a replicator resource. 　
+The namespace to be replicated is entered in the replicationNamespace field, and the secondary cluster to be replicated to is entered in the targetCluster field.　　
+In this case, Server-Side Apply is used for replication, and the Applyconfiguration is embedded in the following replicator resource definitions 　　
+so that they can be defined in the same way as in the usual Deployment definitions.
+In addition, the replicator resource is a Cluster-wide resource in order to manage multiple namespaces.
 ```yaml
 apiVersion: replicate.jnytnai0613.github.io/v1
 kind: Replicator
