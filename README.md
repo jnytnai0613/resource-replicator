@@ -251,7 +251,7 @@ TLS settings are also automatically added to Ingress.
 Each annotation is explained below.
 https://github.com/kubernetes/ingress-nginx/blob/main/docs/user-guide/nginx-configuration/annotations.md#client-certificate-authentication
 ```json
-$ kubectl -n resource-replicator-system get ingress nginx -ojson | jq '.metadata.annotations'
+$ kubectl -n test-ns get ingress nginx -ojson | jq '.metadata.annotations'
 {
   "nginx.ingress.kubernetes.io/auth-tls-secret": "resource-replicator-system/ca-secret",
   "nginx.ingress.kubernetes.io/auth-tls-verify-client": "on",
@@ -262,7 +262,7 @@ $ kubectl -n resource-replicator-system get ingress nginx -ojson | jq '.metadata
 Secret ca-secret is automatically created by the Controller and is automatically specified.
 Also, hosts will automatically use the value specified in CustomResource's '.spec.ingressSpec.rules[].host'.
 ```json
-$ kubectl  -n resource-replicator-system get ingress nginx -ojson | jq '.spec.tls'
+$ kubectl  -n test-ns get ingress nginx -ojson | jq '.spec.tls'
 [
   {
     "hosts": [
@@ -275,9 +275,9 @@ $ kubectl  -n resource-replicator-system get ingress nginx -ojson | jq '.spec.tl
 ### Connection using Ingress
 First, download the client certificate and private key from Secret cli-secret.
 ```sh
-$ kubectl -n resource-replicator-system get secrets cli-secret -ojsonpath='{.data.client\.crt}' | base64 -d > client.crt
+$ kubectl -n test-ns get secrets cli-secret -ojsonpath='{.data.client\.crt}' | base64 -d > client.crt
 
-$ kubectl -n resource-replicator-system get secrets cli-secret -ojsonpath='{.data.client\.key}' | base64 -d > client.key
+$ kubectl -n test-ns get secrets cli-secret -ojsonpath='{.data.client\.key}' | base64 -d > client.key
 ```
 It can then be accessed with the following command
 ```sh
